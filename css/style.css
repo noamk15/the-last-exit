@@ -427,7 +427,7 @@ kbd.wide { padding: 0 12px; }
   transform: scale(1.35);
   font-weight: 600;
 }
-@keyframes blink { to { visibility: hidden; } }
+@keyframes blink { to { opacity: 0.3; } }
 
 .danger {
   z-index: 7;

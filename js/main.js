@@ -192,7 +192,7 @@ function boot() {
   for (let i = 0; i < DUST_N * 3; i++) dustPos[i] = (Math.random() - 0.5) * DUST_R * 2;
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xcfd8d2, size: 0.035, transparent: true, opacity: 0.45, depthWrite: false, sizeAttenuation: true }));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xcfd8d2, size: 0.022, transparent: true, opacity: 0.3, depthWrite: false, sizeAttenuation: true }));
   scene.add(dust);
 
   // ------------------------------------------------------------- level (rebuilt for every new maze)

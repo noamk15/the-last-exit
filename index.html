@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Last Exit</title>
+  <meta name="description" content="A first-person horror maze. Three keys. One way out.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='8' cy='12' r='5' fill='none' stroke='%238ff0a4' stroke-width='2'/%3E%3Cpath d='M13 12h9M19 12v3M22 12v2' stroke='%238ff0a4' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="icon-key" viewBox="0 0 32 20">
+      <circle cx="8" cy="10" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M13.5 10 H30 M26 10 v4 M22 10 v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+  <canvas id="scene" aria-label="3D maze"></canvas>
+
+  <!-- always-on cinematic layers -->
+  <div class="layer vignette" aria-hidden="true"></div>
+  <div class="layer grain" aria-hidden="true"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="screen hud hidden" aria-live="polite">
+    <div class="hud-keys" aria-label="Keys collected">
+      <svg class="key" data-key="0"><use href="#icon-key"/></svg>
+      <svg class="key" data-key="1"><use href="#icon-key"/></svg>
+      <svg class="key" data-key="2"><use href="#icon-key"/></svg>
+      <span class="hud-count" id="hud-count">0 / 3</span>
+    </div>
+    <div class="hud-timer" id="hud-timer">00:00.0</div>
+    <div class="crosshair" aria-hidden="true"></div>
+    <div class="hud-message" id="hud-message" aria-live="assertive"></div>
+    <div class="hud-hint" id="hud-hint">FIND THE THREE KEYS</div>
+  </div>
+
+  <!-- START SCREEN -->
+  <section id="start" class="screen menu">
+    <div class="menu-fog" aria-hidden="true"></div>
+    <div class="menu-inner">
+      <p class="kicker reveal r1">A short descent</p>
+      <h1 class="title reveal r2" aria-label="The Last Exit">
+        <span>T</span><span>H</span><span class="fl">E</span>
+        <span class="gap"> </span>
+        <span>L</span><span>A</span><span>S</span><span>T</span>
+        <span class="gap"> </span>
+        <span class="fl2">E</span><span>X</span><span>I</span><span>T</span>
+      </h1>
+      <p class="tagline reveal r3">Three keys. One way out. Don't stop moving.</p>
+
+      <div class="objective reveal r4" aria-label="Objective: collect 3 keys">
+        <svg class="key"><use href="#icon-key"/></svg>
+        <svg class="key"><use href="#icon-key"/></svg>
+        <svg class="key"><use href="#icon-key"/></svg>
+        <span class="objective-text">0 / 3</span>
+      </div>
+
+      <button id="btn-start" class="btn btn-primary reveal r5" type="button">
+        <span class="btn-label">Enter the maze</span>
+      </button>
+
+      <div class="hints reveal r6" aria-label="Controls">
+        <div class="hint"><span class="keycaps"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span class="hint-text">move</span></div>
+        <div class="hint"><span class="keycaps"><kbd class="wide">mouse</kbd></span><span class="hint-text">look</span></div>
+        <div class="hint"><span class="keycaps"><kbd class="wide">esc</kbd></span><span class="hint-text">pause</span></div>
+      </div>
+
+      <div class="meta reveal r7">
+        <span id="best-line" class="best hidden">best time <strong id="best-value">—</strong></span>
+        <span class="sound-hint">best with sound on</span>
+        <span class="seed">seed <span id="seed-value">—</span></span>
+      </div>
+    </div>
+    <button id="btn-fullscreen" class="btn btn-ghost corner" type="button" title="Toggle fullscreen">fullscreen</button>
+  </section>
+
+  <!-- PAUSE -->
+  <section id="pause" class="screen overlay hidden">
+    <div class="panel">
+      <h2 class="h2">Paused</h2>
+      <p class="sub">The maze is waiting.</p>
+      <div class="row">
+        <button id="btn-resume" class="btn btn-primary" type="button"><span class="btn-label">Resume</span></button>
+        <button id="btn-restart" class="btn btn-ghost" type="button">Restart</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- VICTORY -->
+  <section id="win" class="screen overlay hidden">
+    <div class="bloom" aria-hidden="true"></div>
+    <div class="panel">
+      <p class="kicker">You found it</p>
+      <h2 class="h2 big">You escaped</h2>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">time</span><span class="stat-value" id="win-time">00:00.0</span></div>
+        <div class="stat"><span class="stat-label">best</span><span class="stat-value" id="win-best">—</span></div>
+      </div>
+      <div class="row">
+        <button id="btn-again" class="btn btn-primary" type="button"><span class="btn-label">Play again</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- NO WEBGL -->
+  <section id="nowebgl" class="screen overlay hidden">
+    <div class="panel">
+      <h2 class="h2">No light here</h2>
+      <p class="sub">Your browser could not start WebGL. Try Chrome or Firefox with hardware acceleration enabled.</p>
+    </div>
+  </section>
+
+  <div id="fade" class="fade" aria-hidden="true"></div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

@@ -33,6 +33,8 @@ export class UI {
       restart: $('btn-restart'),
       again: $('btn-again'),
       fullscreen: $('btn-fullscreen'),
+      menu: $('btn-menu'),
+      menuWin: $('btn-menu-win'),
     };
     this._msgTimer = 0;
   }

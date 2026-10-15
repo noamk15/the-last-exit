@@ -334,6 +334,19 @@ function boot() {
     ui.fadeIn();
   }
 
+  async function goToMenu() {
+    if (state === 'menu') return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    audio.stopDrone();
+    await ui.fadeOut();
+    state = 'menu';
+    resetLevel();
+    glide.i = 0; glide.dir = 1; glide.pos.copy(glidePath[0]);
+    ui.setBest(loadBest());
+    ui.showStart();
+    ui.fadeIn();
+  }
+
   async function winGame() {
     state = 'won';
     for (const k in input) input[k] = false;
@@ -372,10 +385,13 @@ function boot() {
   }
 
   // ------------------------------------------------------------- events
-  ui.buttons.start.addEventListener('click', startGame);
-  ui.buttons.resume.addEventListener('click', resumeGame);
-  ui.buttons.restart.addEventListener('click', restartGame);
-  ui.buttons.again.addEventListener('click', restartGame);
+  const onClick = (btn, fn) => btn.addEventListener('click', () => { btn.blur(); fn(); });
+  onClick(ui.buttons.start, startGame);
+  onClick(ui.buttons.resume, resumeGame);
+  onClick(ui.buttons.restart, restartGame);
+  onClick(ui.buttons.again, restartGame);
+  onClick(ui.buttons.menu, goToMenu);
+  onClick(ui.buttons.menuWin, goToMenu);
   ui.buttons.fullscreen.addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
@@ -395,22 +411,29 @@ function boot() {
     player.look(dx, dy);
   });
 
-  const keyMap = {
+  const codeMap = {
     KeyW: 'forward', ArrowUp: 'forward', KeyZ: 'forward',
     KeyS: 'back', ArrowDown: 'back',
     KeyA: 'left', ArrowLeft: 'left', KeyQ: 'left',
     KeyD: 'right', ArrowRight: 'right',
   };
+  const keyNameMap = {
+    arrowup: 'forward', w: 'forward', z: 'forward', up: 'forward',
+    arrowdown: 'back', s: 'back', down: 'back',
+    arrowleft: 'left', a: 'left', q: 'left', left: 'left',
+    arrowright: 'right', d: 'right', right: 'right',
+  };
+  const actionFor = e => codeMap[e.code] || keyNameMap[String(e.key || '').toLowerCase()];
   window.addEventListener('keydown', e => {
-    if (e.code === 'KeyM') { audio.setMuted(!audio.muted); return; }
-    if (e.code === 'KeyP' && state === 'playing') { if (document.pointerLockElement) document.exitPointerLock(); pauseGame(); return; }
-    const k = keyMap[e.code];
+    if (e.code === 'KeyM' || e.key === 'm') { audio.setMuted(!audio.muted); return; }
+    if ((e.code === 'KeyP' || e.key === 'p') && state === 'playing') { if (document.pointerLockElement) document.exitPointerLock(); pauseGame(); return; }
+    const k = actionFor(e);
     if (!k) return;
     e.preventDefault();
     if (state === 'playing') input[k] = true;
   });
   window.addEventListener('keyup', e => {
-    const k = keyMap[e.code];
+    const k = actionFor(e);
     if (k) input[k] = false;
   });
   window.addEventListener('blur', () => { for (const k in input) input[k] = false; });
@@ -471,11 +494,28 @@ function boot() {
     }
   }
 
+  // adaptive resolution: if the machine cannot hold ~30 fps, lower the pixel ratio
+  let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  let slowFrames = 0, perfFrames = 0;
+  function adaptResolution(rawDt) {
+    perfFrames++;
+    if (rawDt > 0.04) slowFrames++;
+    if (perfFrames >= 90) {
+      if (slowFrames > 45 && pixelRatio > 0.75) {
+        pixelRatio = Math.max(0.75, pixelRatio - 0.5);
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      perfFrames = 0; slowFrames = 0;
+    }
+  }
+
   let last = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
     const rawDt = (now - last) / 1000;
     last = now;
+    adaptResolution(rawDt);
     const dt = Math.min(0.05, rawDt);
     time += dt;
 

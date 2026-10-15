@@ -6,8 +6,8 @@ export class Player {
   constructor(maze, cellSize) {
     this.maze = maze;
     this.S = cellSize;
-    this.radius = 0.55;
-    this.speed = 3.6;
+    this.radius = 0.42;
+    this.speed = 4.0;
     this.height = 1.6;
     this.x = 0; this.z = 0;
     this.yaw = 0; this.pitch = 0;

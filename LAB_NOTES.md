@@ -41,3 +41,8 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 ## Candidate story for the 90-second show and tell
 
 (to be chosen at the end)
+
+## User test 1 (2026-10-15, live URL)
+
+- Feedback: "use the arrow keys", "add a way back to the menu", "I can't move forward, it bugs, maybe too wide".
+- Fixes: arrow keycaps shown on the start screen, keyboard now matched by key name as well as physical position (works on AZERTY and QWERTY), Menu button in pause and victory, player radius 0.55 -> 0.42 and speed 3.6 -> 4.0, buttons lose focus after a click (Space/Enter could restart the game), automatic drop of the pixel ratio when the frame rate is low.

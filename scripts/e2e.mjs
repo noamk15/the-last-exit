@@ -69,8 +69,8 @@ function check(cond, label) {
   if (!cond) problems.push('check failed: ' + label);
 }
 async function key(code, down) {
-  const keyName = code.replace('Key', '');
-  await send('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName.toLowerCase(), windowsVirtualKeyCode: keyName.charCodeAt(0) });
+  const keyName = code.startsWith('Key') ? code.slice(3).toLowerCase() : code;
+  await send('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName });
 }
 
 try {
@@ -94,6 +94,10 @@ try {
   const p1 = await evaluate('[__tle.player.x, __tle.player.z]');
   const moved = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
   check(moved > 1.0, `W moves the player forward (${moved.toFixed(2)} units)`);
+  const p1b = await evaluate('[__tle.player.x, __tle.player.z]');
+  await key('ArrowUp', true); await sleep(600); await key('ArrowUp', false); await sleep(100);
+  const p2 = await evaluate('[__tle.player.x, __tle.player.z]');
+  check(Math.hypot(p2[0] - p1b[0], p2[1] - p1b[1]) > 0.3 || moved > 3, 'ArrowUp moves the player too');
   // keep walking into the wall for a while: must stay in an open cell
   await key('KeyW', true); await sleep(2500); await key('KeyW', false); await sleep(100);
   const inWall = await evaluate(`(() => { const c = __tle.player.cell(); return __tle.maze.isWall(c.x, c.y); })()`);
@@ -118,6 +122,9 @@ try {
   await evaluate(`document.getElementById('btn-again').click()`);
   await sleep(1500);
   check(await evaluate('__tle.state') === 'playing' && await evaluate('__tle.keys') === 0, 'play again resets the level');
+  await evaluate(`document.getElementById('btn-menu').click()`);
+  await sleep(1500);
+  check(await evaluate('__tle.state') === 'menu' && await evaluate(`!document.getElementById('start').classList.contains('hidden')`), 'menu button returns to the start screen');
 } catch (e) {
   problems.push('script error: ' + e.message);
 } finally {

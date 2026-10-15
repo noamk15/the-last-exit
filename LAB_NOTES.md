@@ -17,12 +17,15 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 - Used headless Chrome from the command line to take screenshots and read the console, since no Playwright was installed, then tuned the lighting from what it saw (first version was over-exposed with pink/green blocks).
 - Added `Z Q S D` keys because the lab is done on a French (AZERTY) keyboard.
 - Rendered the real 3D maze behind the start menu with the camera gliding through a corridor.
+- Wrote an end-to-end test (`scripts/e2e.mjs`) that drives headless Chrome through the DevTools protocol: loads the page, checks for console errors and 404s, presses W, walks into a wall, teleports onto the 3 keys, waits for the door, enters it, and checks the victory screen. It found two real issues before the first user test.
 
 ## Mistakes the agent made
 
 - First attempt at the movement math had the sign of the yaw rotation wrong (fixed by re-deriving before any test).
 - The first texture pass tinted stone blocks with random RGB; it looked like a toy. Fixed after looking at a screenshot.
 - The menu camera initially faced a wall at the start cell; fixed by orienting it along the first corridor.
+- `requestPointerLock()` returned a rejecting promise in some cases and the fallback call was not caught either (unhandled rejection). Found by the e2e test, fixed with a small `tryLock` helper.
+- The door opening used the clamped physics delta time, so on a slow machine it opened later than 1.2 s. Switched to real time.
 
 ## Difficulties
 

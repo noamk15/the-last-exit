@@ -277,13 +277,17 @@ function boot() {
     ui.setHint('FIND THE THREE KEYS');
   }
 
-  function lockPointer() {
+  // requestPointerLock may throw or return a rejecting promise (cooldown after Esc,
+  // unsupported option, headless browser): never let that surface as an error.
+  function tryLock(opts) {
     try {
-      const p = canvas.requestPointerLock({ unadjustedMovement: true });
-      if (p && p.catch) p.catch(() => { try { canvas.requestPointerLock(); } catch { /* ignore */ } });
-    } catch {
-      try { canvas.requestPointerLock(); } catch { /* ignore */ }
-    }
+      const p = opts ? canvas.requestPointerLock(opts) : canvas.requestPointerLock();
+      if (p && p.catch) return p.then(() => true, () => false);
+      return Promise.resolve(true);
+    } catch { return Promise.resolve(false); }
+  }
+  function lockPointer() {
+    tryLock({ unadjustedMovement: true }).then(ok => { if (!ok) tryLock(); });
   }
 
   async function startGame() {
@@ -440,7 +444,7 @@ function boot() {
     camera.rotation.set(Math.sin(time * 0.5) * 0.02, glide.yaw + Math.sin(time * 0.3) * 0.03, 0);
   }
 
-  function updateGame(dt) {
+  function updateGame(dt, realDt) {
     player.update(dt, input);
     audio.footsteps(dt, player.moving);
     camera.position.set(player.x, player.height + (player.moving ? Math.sin(time * 9) * 0.03 : 0), player.z);
@@ -453,7 +457,7 @@ function boot() {
     }
 
     if (doorAnim >= 0) {
-      doorAnim += dt;
+      doorAnim += realDt; // real time so the door opens at the same pace on slow machines
       const t = Math.min(1, doorAnim / 1.8);
       const ease = t * t * (3 - 2 * t);
       doorMesh.position.y = doorCenter.y - ease * (H + 0.2);
@@ -487,7 +491,7 @@ function boot() {
     exitLight.intensity = (maze.doorOpen || doorAnim >= 0 ? 10 : 6) * (0.9 + 0.1 * Math.sin(time * 7.7));
 
     if (state === 'menu') updateMenuCamera(dt);
-    else if (state === 'playing') { updateGame(dt); elapsed += rawDt * 1000; ui.setTimer(elapsed); }
+    else if (state === 'playing') { updateGame(dt, rawDt); elapsed += rawDt * 1000; ui.setTimer(elapsed); }
 
     renderer.render(scene, camera);
   }
@@ -500,5 +504,13 @@ function boot() {
   if (params.get('autostart')) {
     ui.showHud();
     state = 'playing';
+    // test hook (only with ?autostart): lets scripts/e2e.mjs drive the game
+    window.__tle = {
+      maze, player,
+      get state() { return state; },
+      get keys() { return keysCollected; },
+      get doorAnim() { return doorAnim; },
+      teleport(cx, cy) { player.x = (cx + 0.5) * S; player.z = (cy + 0.5) * S; },
+    };
   }
 }

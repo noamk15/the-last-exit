@@ -89,6 +89,7 @@ try {
   // 2. autostart: play through the level with the test hook
   await navigate(`${BASE}?seed=266&autostart=1`);
   check(await evaluate('window.__tle && window.__tle.state') === 'playing', 'autostart puts game in playing state');
+  await evaluate('__tle.setMonsters(false)');
   const p0 = await evaluate('[__tle.player.x, __tle.player.z]');
   await key('KeyW', true); await sleep(900); await key('KeyW', false); await sleep(100);
   const p1 = await evaluate('[__tle.player.x, __tle.player.z]');
@@ -129,21 +130,38 @@ try {
   // 3. countdown, death, random mazes
   await navigate(`${BASE}?autostart=1`);
   const seedA = await evaluate('__tle.seed');
+  const __limit = await evaluate('__tle.limit');
+  await evaluate('__tle.setMonsters(false)');
   check(/^\d+$/.test(seedA), `random seed generated without ?seed (${seedA})`);
-  await evaluate('__tle.setElapsed(120000 - 25000)');
+  await evaluate('__tle.setElapsed(__tle.limit - 25000)');
   await sleep(400);
   check(await evaluate(`document.getElementById('hud-timer').classList.contains('warn')`), 'timer turns red under 30 s');
-  await evaluate('__tle.setElapsed(120000 - 300)');
+  await evaluate('__tle.setElapsed(__tle.limit - 300)');
   await sleep(1800);
   check(await evaluate('__tle.state') === 'dead', 'time out kills the player');
   check(await evaluate(`!document.getElementById('gameover').classList.contains('hidden')`), 'game over screen visible');
   await evaluate(`document.getElementById('btn-retry').click()`);
   await sleep(1800);
   const seedB = await evaluate('__tle.seed');
-  check(await evaluate('__tle.state') === 'playing' && await evaluate('__tle.remaining') > 118000, 'try again restarts with a full timer');
+  check(await evaluate('__tle.state') === 'playing' && await evaluate('__tle.remaining') > __limit - 3000, 'try again restarts with a full timer');
   check(seedB !== seedA, `try again builds a new random maze (${seedA} -> ${seedB})`);
   const walls = await evaluate(`(() => { let n = 0; const m = __tle.maze; for (let y = 0; y < m.rows; y++) for (let x = 0; x < m.cols; x++) if (m.isWall(x, y)) n++; return n; })()`);
   check(walls > 40, 'new maze has walls');
+
+  // 4. monsters: exist, chase, kill; minimap draws
+  await navigate(`${BASE}?autostart=1&seed=266`);
+  check(await evaluate('__tle.monsters.length') === 2, 'two monsters spawned');
+  const mcell = await evaluate('[__tle.monsters[0].cell.x, __tle.monsters[0].cell.y]');
+  const startCell = await evaluate('[__tle.player.cell().x, __tle.player.cell().y]');
+  check(!(mcell[0] === startCell[0] && mcell[1] === startCell[1]), 'monster does not spawn on the player');
+  const mapPixels = await evaluate(`(() => { const c = document.getElementById('minimap'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; })()`);
+  check(mapPixels > 50, `minimap draws remembered cells (${mapPixels} px)`);
+  // stand right next to the monster: it must chase and catch us
+  await evaluate('__tle.teleport(__tle.monsters[0].cell.x, __tle.monsters[0].cell.y)');
+  await sleep(1500);
+  check(await evaluate('__tle.state') === 'dead' && await evaluate('__tle.deathCause') === 'caught', 'monster catches the player');
+  await sleep(2500);
+  check(await evaluate(`document.getElementById('dead-title').textContent`) === 'Caught', 'game over screen says Caught');
 } catch (e) {
   problems.push('script error: ' + e.message);
 } finally {

@@ -39,6 +39,10 @@
     <div class="crosshair" aria-hidden="true"></div>
     <div class="hud-message" id="hud-message" aria-live="assertive"></div>
     <div class="hud-hint" id="hud-hint">FIND THE THREE KEYS</div>
+    <div class="minimap-wrap" aria-label="Memory map">
+      <canvas id="minimap" width="220" height="220"></canvas>
+      <span class="minimap-label">memory</span>
+    </div>
   </div>
 
   <!-- START SCREEN -->
@@ -53,7 +57,7 @@
         <span class="gap"> </span>
         <span class="fl2">E</span><span>X</span><span>I</span><span>T</span>
       </h1>
-      <p class="tagline reveal r3">Three keys. One way out. Don't stop moving.</p>
+      <p class="tagline reveal r3">Three keys. One way out. You are not alone.</p>
 
       <div class="objective reveal r4" aria-label="Objective: collect 3 keys">
         <svg class="key"><use href="#icon-key"/></svg>
@@ -76,7 +80,7 @@
       <div class="meta reveal r7">
         <span id="best-line" class="best hidden">best time <strong id="best-value">—</strong></span>
         <span class="sound-hint">best with sound on</span>
-        <span class="limit">you have <strong>2:00</strong></span>
+        <span class="limit">you have <strong>1:30</strong></span>
         <span class="seed">maze <span id="seed-value">—</span></span>
       </div>
     </div>
@@ -117,8 +121,8 @@
   <section id="gameover" class="screen overlay dead hidden">
     <div class="panel">
       <p class="kicker">The maze keeps you</p>
-      <h2 class="h2 big red">Time's up</h2>
-      <p class="sub">You never found the exit.</p>
+      <h2 class="h2 big red" id="dead-title">Time's up</h2>
+      <p class="sub" id="dead-sub">You never found the exit.</p>
       <div class="stats">
         <div class="stat"><span class="stat-label">keys</span><span class="stat-value" id="dead-keys">0 / 3</span></div>
       </div>

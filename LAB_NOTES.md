@@ -53,3 +53,12 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 - Music is 100% procedural (Web Audio): bass pulse, dissonant detuned pad, eerie whistle, wind bed, random stingers (metal hit, riser, whisper), heartbeat that accelerates as time runs out. Everything is driven by one "tension" value computed from the time left.
 - The maze is now random for every game (menu, play again, try again). `?seed=` still pins a layout for the demo.
 - Surprise: the agent refactored the whole level into a rebuildable group (dispose + rebuild) so a new maze can be generated without reloading the page.
+
+## User request 3 (2026-10-15): memory minimap, monsters, louder sound, 1:30 timer with reminders
+
+- Minimap (bottom left): cells in line of sight light up, then fade over ~20 s as if forgotten. Keys and the door appear only where remembered. Monsters show as a red pulsing dot when within hearing range.
+- Two monsters: black figures with glowing red eyes, patrol between far cells, chase on BFS distance <= 6 cells (a roar + "RUN" message), give up after a while, kill on contact with a jump scare (monster snaps in front of the camera, scream, "Caught" screen).
+- Their breathing/growl is spatialised: volume by distance, left/right panning by direction, faster when chasing. The flashlight stutters when one is close.
+- Timer now 1:30. Bell at 60 s ("ONE MINUTE"), two bells at 30 s, three at 10 s, then a tick every second (louder in the last 5).
+- Everything louder: master gain up, compressor retuned.
+- Agent note: monsters move from cell centre to cell centre along BFS paths, so they never clip through walls and never need collision code.

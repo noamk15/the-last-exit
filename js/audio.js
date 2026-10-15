@@ -20,11 +20,11 @@ export class AudioSys {
       if (!AC) return false;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 0.8;
+      this.master.gain.value = this.muted ? 0 : 1.0;
       this.master.connect(this.ctx.destination);
       // gentle limiter so stingers never clip
       this.comp = this.ctx.createDynamicsCompressor();
-      this.comp.threshold.value = -14; this.comp.ratio.value = 6; this.comp.attack.value = 0.003; this.comp.release.value = 0.25;
+      this.comp.threshold.value = -10; this.comp.ratio.value = 8; this.comp.attack.value = 0.003; this.comp.release.value = 0.25;
       this.comp.connect(this.master);
       this.bus = this.comp;
     }
@@ -34,12 +34,12 @@ export class AudioSys {
 
   setMuted(m) {
     this.muted = m;
-    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.8, this.ctx.currentTime, 0.05);
+    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 1.0, this.ctx.currentTime, 0.05);
   }
 
   duck(on) {
     if (!this.master) return;
-    this.master.gain.setTargetAtTime(this.muted ? 0 : (on ? 0.25 : 0.8), this.ctx.currentTime, 0.2);
+    this.master.gain.setTargetAtTime(this.muted ? 0 : (on ? 0.3 : 1.0), this.ctx.currentTime, 0.2);
   }
 
   _noise(seconds) {
@@ -98,12 +98,12 @@ export class AudioSys {
     if (!this.ensure() || this.music) return;
     this.stopDrone();
     const c = this.ctx, t = c.currentTime;
-    const out = c.createGain(); out.gain.value = 0; out.gain.setTargetAtTime(1, t, 2);
+    const out = c.createGain(); out.gain.value = 0; out.gain.setTargetAtTime(1.7, t, 2);
     out.connect(this.bus);
 
     // 1. bass pulse (heart of the tension)
     const bass = c.createOscillator(); bass.type = 'sine'; bass.frequency.value = 41.2;
-    const bassG = c.createGain(); bassG.gain.value = 0.22;
+    const bassG = c.createGain(); bassG.gain.value = 0.3;
     const pulse = c.createOscillator(); pulse.type = 'square'; pulse.frequency.value = 1.1;
     const pulseG = c.createGain(); pulseG.gain.value = 0.11;
     pulse.connect(pulseG).connect(bassG.gain);
@@ -112,7 +112,7 @@ export class AudioSys {
 
     // 2. dissonant pad: detuned saws, minor second, slow filter sweep
     const padF = c.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 260; padF.Q.value = 2;
-    const padG = c.createGain(); padG.gain.value = 0.05;
+    const padG = c.createGain(); padG.gain.value = 0.08;
     const padOscs = [];
     for (const f of [110, 110.9, 116.5, 220.6]) {
       const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
@@ -137,7 +137,7 @@ export class AudioSys {
     // 4. wind / breath bed
     const wind = this._noise(3);
     const windF = c.createBiquadFilter(); windF.type = 'bandpass'; windF.frequency.value = 500; windF.Q.value = 0.6;
-    const windG = c.createGain(); windG.gain.value = 0.03;
+    const windG = c.createGain(); windG.gain.value = 0.05;
     const windLfo = c.createOscillator(); windLfo.frequency.value = 0.13;
     const windLfoG = c.createGain(); windLfoG.gain.value = 300;
     windLfo.connect(windLfoG).connect(windF.frequency); windLfo.start();
@@ -166,8 +166,8 @@ export class AudioSys {
     if (!this.music) return;
     const m = this.music, now = this.ctx.currentTime;
     m.pulse.frequency.setTargetAtTime(1.1 + this._tension * 3.2, now, 0.5);
-    m.bassG.gain.setTargetAtTime(0.22 + this._tension * 0.16, now, 0.5);
-    m.padG.gain.setTargetAtTime(0.05 + this._tension * 0.09, now, 0.5);
+    m.bassG.gain.setTargetAtTime(0.3 + this._tension * 0.2, now, 0.5);
+    m.padG.gain.setTargetAtTime(0.08 + this._tension * 0.12, now, 0.5);
     m.padF.Q.setTargetAtTime(2 + this._tension * 8, now, 0.5);
     m.windG.gain.setTargetAtTime(0.03 + this._tension * 0.06, now, 0.5);
   }
@@ -234,7 +234,7 @@ export class AudioSys {
       o.frequency.setValueAtTime(70, t + d); o.frequency.exponentialRampToValueAtTime(38, t + d + 0.12);
       const g = c.createGain();
       g.gain.setValueAtTime(0, t + d);
-      g.gain.linearRampToValueAtTime(0.5 * vol * v, t + d + 0.012);
+      g.gain.linearRampToValueAtTime(0.8 * vol * v, t + d + 0.012);
       g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.16);
       o.connect(g).connect(this.bus); o.start(t + d); o.stop(t + d + 0.2);
     }
@@ -251,8 +251,8 @@ export class AudioSys {
 
   pickup() {
     if (!this.ensure()) return;
-    this._tone(880, 0.5, 'sine', 0.18);
-    this._tone(1320, 0.7, 'sine', 0.12, 0.06);
+    this._tone(880, 0.5, 'sine', 0.3);
+    this._tone(1320, 0.7, 'sine', 0.2, 0.06);
     this._tone(1760, 1.1, 'triangle', 0.06, 0.12);
   }
 
@@ -279,6 +279,89 @@ export class AudioSys {
     setTimeout(() => this.whisper(), 600);
   }
 
+  // ------------------------------------------------------------- monsters
+  // one looping, panned "breathing + growl" voice per monster
+  monsterVoice() {
+    if (!this.ensure()) return null;
+    const c = this.ctx;
+    const out = c.createGain(); out.gain.value = 0;
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan) out.connect(pan).connect(this.bus); else out.connect(this.bus);
+    // breathing: noise through a bandpass whose gain follows a slow LFO
+    const breath = this._noise(2);
+    const bf = c.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 420; bf.Q.value = 1.2;
+    const bg = c.createGain(); bg.gain.value = 0.5;
+    const blfo = c.createOscillator(); blfo.frequency.value = 0.55;
+    const blfoG = c.createGain(); blfoG.gain.value = 0.45;
+    blfo.connect(blfoG).connect(bg.gain); blfo.start();
+    breath.connect(bf).connect(bg).connect(out); breath.start();
+    // growl: low saw with tremolo
+    const growl = c.createOscillator(); growl.type = 'sawtooth'; growl.frequency.value = 47;
+    const gf = c.createBiquadFilter(); gf.type = 'lowpass'; gf.frequency.value = 160; gf.Q.value = 3;
+    const gg = c.createGain(); gg.gain.value = 0.5;
+    const trem = c.createOscillator(); trem.frequency.value = 7;
+    const tremG = c.createGain(); tremG.gain.value = 0.3;
+    trem.connect(tremG).connect(gg.gain); trem.start();
+    growl.connect(gf).connect(gg).connect(out); growl.start();
+    return { out, pan, blfo, trem, growl, breath, bf, gf };
+  }
+  setMonster(v, volume, panValue, chasing) {
+    if (!v || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    v.out.gain.setTargetAtTime(volume, t, 0.15);
+    if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, panValue)), t, 0.1);
+    v.blfo.frequency.setTargetAtTime(chasing ? 2.2 : 0.55, t, 0.3);
+    v.growl.frequency.setTargetAtTime(chasing ? 62 : 47, t, 0.3);
+    v.gf.frequency.setTargetAtTime(chasing ? 320 : 160, t, 0.3);
+  }
+  stopMonster(v) {
+    if (!v) return;
+    v.out.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
+    setTimeout(() => { [v.blfo, v.trem, v.growl, v.breath].forEach(n => { try { n.stop(); } catch { /* ok */ } }); v.out.disconnect(); }, 1200);
+  }
+  roar(panValue = 0) {
+    if (!this.ensure()) return;
+    const c = this.ctx, t = c.currentTime;
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    const dest = c.createGain(); dest.gain.value = 1;
+    if (pan) { pan.pan.value = Math.max(-1, Math.min(1, panValue)); dest.connect(pan).connect(this.bus); } else dest.connect(this.bus);
+    this._tone(240, 1.4, 'sawtooth', 0.35, 0, dest, 70);
+    this._tone(243, 1.4, 'square', 0.15, 0, dest, 72);
+    const n = this._noise(1.5), f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(200, t + 1.2); f.Q.value = 1.5;
+    const g = c.createGain(); g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.3);
+    n.connect(f).connect(g).connect(dest); n.start(t); n.stop(t + 1.4);
+  }
+  scream() {
+    if (!this.ensure()) return;
+    const c = this.ctx, t = c.currentTime;
+    this._tone(900, 1.1, 'sawtooth', 0.45, 0, null, 1800);
+    this._tone(1350, 1.1, 'square', 0.25, 0.02, null, 2600);
+    this._tone(70, 2.5, 'sine', 0.6, 0, null, 28);
+    const n = this._noise(1.2), g = c.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+    const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1200;
+    n.connect(f).connect(g).connect(this.bus); n.start(t); n.stop(t + 1.2);
+  }
+  // time reminders
+  bell(times = 1) {
+    if (!this.ensure()) return;
+    for (let i = 0; i < times; i++) {
+      const d = i * 0.9;
+      this._tone(196, 2.6, 'sine', 0.45, d);
+      this._tone(392, 1.8, 'triangle', 0.18, d);
+      this._tone(588, 1.0, 'sine', 0.08, d + 0.01);
+      this._tone(1160, 0.5, 'sine', 0.06, d + 0.01);
+    }
+  }
+  tick(strong = false) {
+    if (!this.ensure()) return;
+    const c = this.ctx, t = c.currentTime;
+    const n = this._noise(0.06), g = c.createGain();
+    g.gain.setValueAtTime(strong ? 0.6 : 0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = strong ? 1800 : 2600; f.Q.value = 6;
+    n.connect(f).connect(g).connect(this.bus); n.start(t); n.stop(t + 0.07);
+    this._tone(strong ? 660 : 880, 0.12, 'square', strong ? 0.12 : 0.05);
+  }
+
   footsteps(dt, moving) {
     if (!this.ctx || this.muted) return;
     if (!moving) { this._stepT = 0.25; return; }
@@ -291,7 +374,7 @@ export class AudioSys {
     f.type = 'lowpass'; f.frequency.value = 320 + Math.random() * 120;
     const g = c.createGain();
     g.gain.setValueAtTime(0.0, t);
-    g.gain.linearRampToValueAtTime(0.09, t + 0.012);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.012);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
     src.connect(f).connect(g).connect(this.bus);
     src.start(t); src.stop(t + 0.2);

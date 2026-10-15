@@ -4,13 +4,19 @@ import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } 
 import { Player } from './player.js';
 import { UI, loadBest, saveBest } from './ui.js';
 import { AudioSys } from './audio.js';
+import { Minimap } from './minimap.js';
 
 const S = 2;            // cell size (world units)
 const H = 3;            // wall height
 const COLS = 13, ROWS = 13;
 const TOTAL_KEYS = 3;
 const PICKUP_DIST = 1.0;
-const TIME_LIMIT = 120;      // seconds to escape
+const TIME_LIMIT = 90;       // seconds to escape
+const MONSTER_COUNT = 2;
+const MONSTER_PATROL_SPEED = 1.5, MONSTER_CHASE_SPEED = 3.1;
+const MONSTER_SENSE_CELLS = 6;   // BFS distance at which a monster starts chasing
+const MONSTER_LOSE_CELLS = 11;   // BFS distance at which it gives up
+const CATCH_DIST = 0.9;
 const WARN_AT = 30;          // timer turns red
 const CRITICAL_AT = 10;      // timer gets frantic
 
@@ -25,6 +31,7 @@ const ui = new UI();
 ui.setBest(loadBest());
 
 const audio = new AudioSys();
+const minimap = new Minimap(document.getElementById('minimap'), S);
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -175,6 +182,12 @@ function boot() {
   const toothGeo = new THREE.BoxGeometry(0.06, 0.14, 0.06);
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.6, metalness: 0.7 });
   const DOOR_LOCKED = 0x5a120e, DOOR_OPEN = 0x2f9a52;
+  const monsterMat = new THREE.MeshStandardMaterial({ color: 0x070709, roughness: 1, metalness: 0 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
+  const bodyGeo = new THREE.CylinderGeometry(0.2, 0.32, 1.9, 8);
+  const headGeo = new THREE.SphereGeometry(0.21, 10, 8);
+  const eyeGeo = new THREE.SphereGeometry(0.035, 8, 6);
+  const armGeo = new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6);
 
   // floor + ceiling never change between levels
   const floorMesh = new THREE.Mesh(planeGeo, floorMat);
@@ -202,6 +215,7 @@ function boot() {
 
   function disposeLevel() {
     if (!level) return;
+    level.monsters.forEach(mo => audio.stopMonster(mo.voice));
     scene.remove(level.group);
     level.walls.dispose();
     level.group.traverse(o => { if (o.geometry && o.geometry !== wallGeo && ![ringGeo, shaftGeo, toothGeo].includes(o.geometry)) o.geometry.dispose(); });
@@ -272,15 +286,44 @@ function boot() {
     exitLight.position.set((maze.exit.x + 0.5) * S, 2.3, (maze.exit.y + 0.5) * S);
     group.add(exitLight);
 
-    // menu glide path: start -> farthest cell
+    // monsters: spawn far from the start, not on a key
     const fromStart = bfs(maze, maze.start.x, maze.start.y);
+    const spawnCells = [];
+    for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) {
+      if (!maze.isOpen(x, y)) continue;
+      const d = fromStart.dist[maze.idx(x, y)];
+      if (d < 10) continue;
+      if (maze.keys.some(k => k.x === x && k.y === y)) continue;
+      spawnCells.push({ x, y, d });
+    }
+    spawnCells.sort(() => Math.random() - 0.5);
+    const monsters = [];
+    for (let i = 0; i < MONSTER_COUNT && spawnCells.length; i++) {
+      const cell = spawnCells.pop();
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(bodyGeo, monsterMat); body.position.y = 0.95;
+      const head = new THREE.Mesh(headGeo, monsterMat); head.position.y = 2.05;
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.07, 2.08, 0.18);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.07, 2.08, 0.18);
+      const armL = new THREE.Mesh(armGeo, monsterMat); armL.position.set(-0.3, 1.0, 0.05); armL.rotation.z = 0.15;
+      const armR = new THREE.Mesh(armGeo, monsterMat); armR.position.set(0.3, 1.0, 0.05); armR.rotation.z = -0.15;
+      const glow = new THREE.PointLight(0xff2a1a, 1.4, 3.5, 2); glow.position.set(0, 2.0, 0.25);
+      g.add(body, head, eyeL, eyeR, armL, armR, glow);
+      const pos = new THREE.Vector3((cell.x + 0.5) * S, 0, (cell.y + 0.5) * S);
+      g.position.copy(pos);
+      group.add(g);
+      monsters.push({ group: g, pos, cell: { x: cell.x, y: cell.y }, path: [], state: 'patrol', repathT: 0, lostT: 0, voice: null, bob: Math.random() * 6 });
+    }
+
+    // menu glide path: start -> farthest cell
     let farIdx = 0;
     for (let i = 0; i < fromStart.dist.length; i++) if (fromStart.dist[i] > fromStart.dist[farIdx]) farIdx = i;
     const glidePath = pathTo(maze, fromStart, farIdx % COLS, Math.floor(farIdx / COLS))
       .map(c => new THREE.Vector3((c.x + 0.5) * S, 1.5, (c.y + 0.5) * S));
 
     scene.add(group);
-    level = { maze, group, walls, keyObjs, door, doorMesh, doorMat, doorCenter, beyond, beyondLight, exitLight, glidePath };
+    level = { maze, group, walls, keyObjs, door, doorMesh, doorMat, doorCenter, beyond, beyondLight, exitLight, glidePath, monsters, spawnCells };
+    minimap.setMaze(maze);
     resetGlide();
     return level;
   }
@@ -301,6 +344,9 @@ function boot() {
   let time = 0;
   let tension = 0;
   let brownout = { t: 0, next: 10 + Math.random() * 10, active: false };
+  let lastSecond = -1;
+  let monstersEnabled = true;
+  let monsterTension = 0;
   const input = { forward: false, back: false, left: false, right: false };
 
   function resetLevel() {
@@ -317,6 +363,15 @@ function boot() {
     L.beyond.visible = false;
     L.beyondLight.intensity = 0;
     L.keyObjs.forEach(k => { k.collected = false; k.group.visible = true; });
+    L.monsters.forEach(mo => {
+      mo.pos.set((mo.cell.x + 0.5) * S, 0, (mo.cell.y + 0.5) * S);
+      mo.group.position.copy(mo.pos);
+      mo.path = []; mo.state = 'patrol'; mo.repathT = 0; mo.lostT = 0;
+      mo.home = { x: mo.cell.x, y: mo.cell.y };
+    });
+    minimap.reset();
+    lastSecond = -1;
+    monsterTension = 0;
     player.reset(L.maze.start.x, L.maze.start.y);
     for (const k in input) input[k] = false;
     ui.setKeys(0, TOTAL_KEYS);
@@ -349,6 +404,7 @@ function boot() {
     ui.showHud();
     state = 'playing';
     audio.startMusic();
+    level.monsters.forEach(mo => { if (!mo.voice) mo.voice = audio.monsterVoice(); });
     if (document.pointerLockElement !== canvas) lockPointer();
     ui.fadeIn();
   }
@@ -377,9 +433,14 @@ function boot() {
     ui.hidePause();
   }
 
+  function silenceMonsters() {
+    level.monsters.forEach(mo => { if (mo.voice) audio.setMonster(mo.voice, 0, 0, false); });
+  }
+
   async function goToMenu() {
     if (state === 'menu') return;
     if (document.pointerLockElement) document.exitPointerLock();
+    silenceMonsters();
     audio.stopMusic();
     audio.duck(false);
     await ui.fadeOut();
@@ -395,6 +456,7 @@ function boot() {
   async function winGame() {
     state = 'won';
     for (const k in input) input[k] = false;
+    silenceMonsters();
     audio.stopMusic();
     audio.win();
     const prevBest = loadBest();
@@ -408,17 +470,39 @@ function boot() {
     ui.fadeIn();
   }
 
-  async function die() {
+  async function die(cause) {
     state = 'dead';
+    deathCause = cause;
     for (const k in input) input[k] = false;
+    silenceMonsters();
     audio.stopMusic();
-    audio.gameOver();
-    flashlight.intensity = 0;
+    if (cause === 'caught') audio.scream(); else audio.gameOver();
+    if (cause !== 'caught') flashlight.intensity = 0;
     ui.setDanger(1);
     if (document.pointerLockElement) document.exitPointerLock();
+    if (cause === 'caught') await new Promise(r => setTimeout(r, 900)); // let the jump scare land
     await ui.fadeOut();
-    ui.showGameOver(keysCollected, TOTAL_KEYS);
+    ui.showGameOver(keysCollected, TOTAL_KEYS, cause);
     ui.fadeIn();
+  }
+  let deathCause = '';
+
+  // jump scare: the monster steps in front of the camera, the camera snaps to it
+  function caught(mo) {
+    const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+    // place the monster where the player is looking so it fills the view
+    const dx = mo.pos.x - player.x, dz = mo.pos.z - player.z;
+    const d = Math.hypot(dx, dz) || 1;
+    const ux = d > 0.1 ? dx / d : fx, uz = d > 0.1 ? dz / d : fz;
+    mo.pos.set(player.x + ux * 0.85, 0, player.z + uz * 0.85);
+    mo.group.position.copy(mo.pos);
+    mo.group.lookAt(player.x, 0, player.z);
+    player.yaw = Math.atan2(-ux, -uz);
+    player.pitch = 0.25;
+    camera.position.set(player.x, player.height, player.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+    flashlight.intensity = FLASH_INTENSITY * 1.5;
+    die('caught');
   }
 
   function collectKey(k) {
@@ -562,17 +646,111 @@ function boot() {
       if (c.x === L.door.x && c.y === L.door.y) { winGame(); return; }
     }
 
+    // monsters
+    if (monstersEnabled) { updateMonsters(dt); if (state !== 'playing') return; }
+
+    // memory minimap
+    minimap.update(dt, player);
+    minimap.draw(player, L.keyObjs, monstersEnabled ? L.monsters : [], L.maze.exit, L.door, L.maze.doorOpen);
+
     // countdown
     elapsed += realDt * 1000;
     const remaining = TIME_LIMIT * 1000 - elapsed;
     ui.setCountdown(Math.max(0, remaining), WARN_AT * 1000, CRITICAL_AT * 1000);
-    const newTension = Math.max(0, Math.min(1, 1 - remaining / (WARN_AT * 1000 * 1.5)));
+    // sound reminders at important moments
+    const sec = Math.ceil(remaining / 1000);
+    if (sec !== lastSecond) {
+      if (lastSecond !== -1) {
+        if (sec === 60) { audio.bell(1); ui.message('ONE MINUTE'); }
+        else if (sec === 30) { audio.bell(2); ui.message('THIRTY SECONDS'); }
+        else if (sec === 10) { audio.bell(3); ui.message('TEN SECONDS'); }
+        else if (sec < 10 && sec > 0) audio.tick(sec <= 5);
+      }
+      lastSecond = sec;
+    }
+    const timeTension = Math.max(0, Math.min(1, 1 - remaining / (WARN_AT * 1000 * 1.5)));
+    const newTension = Math.max(timeTension, monsterTension);
     if (Math.abs(newTension - tension) > 0.01) { tension = newTension; audio.setTension(tension); }
     // red pulse synced with the heartbeat pace
     const beat = tension > 0.05 ? Math.pow(Math.max(0, Math.sin(time * (1 + tension * 1.7) * Math.PI * 2)), 6) : 0;
     ui.setDanger(tension * (0.25 + 0.55 * beat));
     audio.tick(dt);
-    if (remaining <= 0) die();
+    if (remaining <= 0) die('time');
+  }
+
+  // ------------------------------------------------------------- monsters
+  const monsterTmp = new THREE.Vector3();
+  function updateMonsters(dt) {
+    const L = level, maze = L.maze;
+    const pc = player.cell();
+    const fromPlayer = bfs(maze, pc.x, pc.y);
+    let nearest = Infinity;
+    for (const mo of L.monsters) {
+      const bfsDist = fromPlayer.dist[maze.idx(mo.cell.x, mo.cell.y)];
+      const worldDist = Math.hypot(mo.pos.x - player.x, mo.pos.z - player.z);
+      nearest = Math.min(nearest, worldDist);
+
+      // state changes
+      if (mo.state === 'patrol') {
+        if (bfsDist >= 0 && bfsDist <= MONSTER_SENSE_CELLS) {
+          mo.state = 'chase'; mo.path = []; mo.repathT = 0; mo.lostT = 0;
+          const rel = relativePan(mo);
+          audio.roar(rel);
+          ui.message('RUN');
+        }
+      } else if (bfsDist < 0 || bfsDist > MONSTER_LOSE_CELLS) {
+        mo.lostT += dt;
+        if (mo.lostT > 2.5) { mo.state = 'patrol'; mo.path = []; }
+      } else mo.lostT = 0;
+
+      // pathing
+      mo.repathT -= dt;
+      if (mo.state === 'chase' && mo.repathT <= 0) {
+        mo.repathT = 0.4;
+        const p = pathTo(maze, fromPlayer, mo.cell.x, mo.cell.y).reverse(); // monster -> player
+        mo.path = p.slice(1);
+      } else if (mo.state === 'patrol' && mo.path.length === 0) {
+        const choices = L.spawnCells.length ? L.spawnCells : [maze.start];
+        const target = choices[Math.floor(Math.random() * choices.length)];
+        const own = bfs(maze, mo.cell.x, mo.cell.y);
+        mo.path = pathTo(maze, own, target.x, target.y).slice(1);
+      }
+
+      // movement along the path (cell centre to cell centre)
+      const speed = mo.state === 'chase' ? MONSTER_CHASE_SPEED : MONSTER_PATROL_SPEED;
+      let budget = speed * dt;
+      while (budget > 0 && mo.path.length) {
+        const next = mo.path[0];
+        monsterTmp.set((next.x + 0.5) * S, 0, (next.y + 0.5) * S).sub(mo.pos);
+        const d = monsterTmp.length();
+        if (d <= budget) { mo.pos.set((next.x + 0.5) * S, 0, (next.y + 0.5) * S); mo.cell = { x: next.x, y: next.y }; mo.path.shift(); budget -= d; }
+        else { mo.pos.addScaledVector(monsterTmp.normalize(), budget); budget = 0; }
+        const dirX = monsterTmp.x, dirZ = monsterTmp.z;
+        if (d > 0.001) mo.group.lookAt(mo.pos.x + dirX, 0, mo.pos.z + dirZ);
+      }
+      mo.cell = { x: Math.floor(mo.pos.x / S), y: Math.floor(mo.pos.z / S) };
+      mo.bob += dt * (mo.state === 'chase' ? 9 : 4);
+      mo.group.position.set(mo.pos.x, Math.abs(Math.sin(mo.bob)) * 0.06, mo.pos.z);
+      if (mo.state === 'chase') mo.group.lookAt(player.x, 0, player.z);
+
+      // voice: volume by distance, panned by direction
+      if (mo.voice) {
+        const vol = Math.max(0, 1 - worldDist / 14) ** 1.5 * (mo.state === 'chase' ? 1.4 : 0.8);
+        audio.setMonster(mo.voice, vol, relativePan(mo), mo.state === 'chase');
+      }
+
+      if (worldDist < CATCH_DIST) { caught(mo); return; }
+    }
+    monsterTension = Math.max(0, Math.min(1, 1 - (nearest - 1.5) / 8));
+    // the torch stutters when something is close
+    if (nearest < 5 && Math.random() < 0.25) flashlight.intensity *= 0.35;
+  }
+  // -1 (left) .. 1 (right) relative to where the player looks
+  function relativePan(mo) {
+    const dx = mo.pos.x - player.x, dz = mo.pos.z - player.z;
+    const rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw); // right vector
+    const d = Math.hypot(dx, dz) || 1;
+    return (dx * rx + dz * rz) / d;
   }
 
   // flashlight: subtle hum + occasional brownouts (more frequent under tension)
@@ -667,6 +845,10 @@ function boot() {
       get remaining() { return TIME_LIMIT * 1000 - elapsed; },
       setElapsed(ms) { elapsed = ms; },
       teleport(cx, cy) { player.x = (cx + 0.5) * S; player.z = (cy + 0.5) * S; },
+      get limit() { return TIME_LIMIT * 1000; },
+      get monsters() { return level.monsters; },
+      get deathCause() { return deathCause; },
+      setMonsters(on) { monstersEnabled = on; },
     };
   }
 }

@@ -23,6 +23,9 @@ export class UI {
     this.hudTimerValue = $('hud-timer-value');
     this.gameover = $('gameover');
     this.deadKeys = $('dead-keys');
+    this.deadTitle = $('dead-title');
+    this.deadSub = $('dead-sub');
+    this.minimap = $('minimap');
     this.danger = $('danger');
     this.hudMessage = $('hud-message');
     this.hudHint = $('hud-hint');
@@ -53,7 +56,12 @@ export class UI {
   showPause() { this.show(this.pause); }
   hidePause() { this.hide(this.pause); }
   showWin()   { this.hide(this.hud); this.hide(this.pause); this.show(this.win); this.setDanger(0); }
-  showGameOver(keys, total) { this.deadKeys.textContent = `${keys} / ${total}`; this.hide(this.hud); this.hide(this.pause); this.show(this.gameover); this.setDanger(0); }
+  showGameOver(keys, total, cause) {
+    this.deadKeys.textContent = `${keys} / ${total}`;
+    if (cause === 'caught') { this.deadTitle.textContent = 'Caught'; this.deadSub.textContent = 'Something found you in the dark.'; }
+    else { this.deadTitle.textContent = "Time's up"; this.deadSub.textContent = 'You never found the exit.'; }
+    this.hide(this.hud); this.hide(this.pause); this.show(this.gameover); this.setDanger(0);
+  }
   setDanger(v) { this.danger.style.opacity = String(Math.max(0, Math.min(1, v))); }
   showNoWebGL() { this.hide(this.start); this.show(this.nowebgl); }
 

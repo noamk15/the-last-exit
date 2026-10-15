@@ -78,3 +78,7 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 
 - The user reported "the tick is still there and the monster did not change" right after a deploy that curl showed was live. Cause: GitHub Pages sends `Cache-Control: max-age=600`, and a normal browser reload keeps cached JS modules. Fix: `scripts/bump.mjs` stamps `?v=<version>` on every import before each deploy, so new files are fetched as soon as `index.html` is reloaded.
 - Also shortened the audible range of monster footsteps: in a 13x13 maze a monster is almost always within 9 cells, so the steps were a permanent low "toc toc" that could be heard as a tick.
+
+## User request 6 (2026-10-15): "I want to see the monster when I die"
+
+- The first jump scare placed the monster 0.85 units away, but with a 2.9 m creature the face was above the field of view: the player only saw a black torso. Now the monster sinks to eye level, lunges from 1.9 to 0.7 units in one second with twitching head and gaping mouth, the screen shakes and flashes red, and the "Caught" panel appears over the scene with the monster still visible behind it (no fade to black).

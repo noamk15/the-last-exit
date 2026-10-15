@@ -1,10 +1,10 @@
 // THE LAST EXIT — main game loop, scene, state machine.
 import * as THREE from 'three';
-import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js?v=mv9dr1pe';
-import { Player } from './player.js?v=mv9dr1pe';
-import { UI, loadBest, saveBest } from './ui.js?v=mv9dr1pe';
-import { AudioSys } from './audio.js?v=mv9dr1pe';
-import { Minimap } from './minimap.js?v=mv9dr1pe';
+import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js?v=mv9dy2zi';
+import { Player } from './player.js?v=mv9dy2zi';
+import { UI, loadBest, saveBest } from './ui.js?v=mv9dy2zi';
+import { AudioSys } from './audio.js?v=mv9dy2zi';
+import { Minimap } from './minimap.js?v=mv9dy2zi';
 
 const S = 2;            // cell size (world units)
 const H = 3;            // wall height
@@ -398,6 +398,7 @@ function boot() {
       mo.home = { x: mo.cell.x, y: mo.cell.y };
     });
     minimap.reset();
+    scare = null;
     lastSecond = -1;
     monsterTension = 0;
     player.reset(L.maze.start.x, L.maze.start.y);
@@ -496,33 +497,54 @@ function boot() {
     deathCause = cause;
     for (const k in input) input[k] = false;
     audio.stopMusic();
-    if (cause === 'caught') audio.scream(); else audio.gameOver();
-    if (cause !== 'caught') flashlight.intensity = 0;
-    ui.setDanger(1);
     if (document.pointerLockElement) document.exitPointerLock();
-    if (cause === 'caught') await new Promise(r => setTimeout(r, 900)); // let the jump scare land
-    await ui.fadeOut();
-    ui.showGameOver(keysCollected, TOTAL_KEYS, cause);
-    ui.fadeIn();
+    if (cause === 'caught') {
+      audio.scream();
+      await new Promise(r => setTimeout(r, 1300)); // let the jump scare play
+      ui.showGameOver(keysCollected, TOTAL_KEYS, cause); // no fade: the monster stays in view behind the panel
+    } else {
+      audio.gameOver();
+      flashlight.intensity = 0;
+      ui.setDanger(1);
+      await ui.fadeOut();
+      ui.showGameOver(keysCollected, TOTAL_KEYS, cause);
+      ui.fadeIn();
+    }
   }
   let deathCause = '';
 
-  // jump scare: the monster steps in front of the camera, the camera snaps to it
+  // jump scare: the camera snaps to the monster, which lunges at your face
+  let scare = null;
   function caught(mo) {
     const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
-    // place the monster where the player is looking so it fills the view
     const dx = mo.pos.x - player.x, dz = mo.pos.z - player.z;
-    const d = Math.hypot(dx, dz) || 1;
+    const d = Math.hypot(dx, dz);
     const ux = d > 0.1 ? dx / d : fx, uz = d > 0.1 ? dz / d : fz;
-    mo.pos.set(player.x + ux * 0.85, 0, player.z + uz * 0.85);
-    mo.group.position.copy(mo.pos);
-    mo.group.lookAt(player.x, 0, player.z);
     player.yaw = Math.atan2(-ux, -uz);
-    player.pitch = 0.25;
-    camera.position.set(player.x, player.height, player.z);
-    camera.rotation.set(player.pitch, player.yaw, 0);
-    flashlight.intensity = FLASH_INTENSITY * 1.5;
+    player.pitch = 0.12;
+    scare = { mo, t: 0, dur: 1.0, ux, uz, yaw: player.yaw, pitch: player.pitch };
+    updateScare(0);
     die('caught');
+  }
+  function updateScare(dt) {
+    const sc = scare, mo = sc.mo;
+    sc.t += dt;
+    const k = Math.min(1, sc.t / sc.dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    const dist = 1.9 - 1.2 * e;                      // lunges from 1.9 to 0.7 units
+    mo.pos.set(player.x + sc.ux * dist, 0, player.z + sc.uz * dist);
+    const crouch = -0.95;                            // sink so its face meets your eyes
+    mo.group.position.set(mo.pos.x, crouch, mo.pos.z);
+    mo.group.lookAt(player.x, crouch, player.z);
+    mo.head.rotation.x = -0.25 + (Math.random() - 0.5) * 0.35;
+    mo.head.rotation.z = (Math.random() - 0.5) * 0.5;
+    mo.mouth.scale.y = 2.5 + Math.sin(sc.t * 40) * 1.2;
+    mo.armL.rotation.x = -1.5; mo.armR.rotation.x = -1.5;
+    const shake = 0.05 * (1 - k) + 0.012;
+    camera.position.set(player.x + (Math.random() - 0.5) * shake, player.height + (Math.random() - 0.5) * shake, player.z + (Math.random() - 0.5) * shake);
+    camera.rotation.set(sc.pitch + (Math.random() - 0.5) * shake, sc.yaw + (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake * 0.5);
+    flashlight.intensity = FLASH_INTENSITY * (1.6 + Math.random() * 0.6);
+    ui.setDanger(0.55 + 0.45 * Math.abs(Math.sin(sc.t * 18)));
   }
 
   function collectKey(k) {
@@ -865,6 +887,7 @@ function boot() {
 
     if (state === 'menu') updateMenuCamera(dt);
     else if (state === 'playing') updateGame(dt, rawDt);
+    else if (state === 'dead' && scare) updateScare(dt);
     updateDust(dt);
 
     renderer.render(scene, camera);

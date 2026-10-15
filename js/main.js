@@ -1,10 +1,10 @@
 // THE LAST EXIT — main game loop, scene, state machine.
 import * as THREE from 'three';
-import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js?v=mv9dy2zi';
-import { Player } from './player.js?v=mv9dy2zi';
-import { UI, loadBest, saveBest } from './ui.js?v=mv9dy2zi';
-import { AudioSys } from './audio.js?v=mv9dy2zi';
-import { Minimap } from './minimap.js?v=mv9dy2zi';
+import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js?v=mv9e1sub';
+import { Player } from './player.js?v=mv9e1sub';
+import { UI, loadBest, saveBest } from './ui.js?v=mv9e1sub';
+import { AudioSys } from './audio.js?v=mv9e1sub';
+import { Minimap } from './minimap.js?v=mv9e1sub';
 
 const S = 2;            // cell size (world units)
 const H = 3;            // wall height
@@ -543,7 +543,7 @@ function boot() {
     const shake = 0.05 * (1 - k) + 0.012;
     camera.position.set(player.x + (Math.random() - 0.5) * shake, player.height + (Math.random() - 0.5) * shake, player.z + (Math.random() - 0.5) * shake);
     camera.rotation.set(sc.pitch + (Math.random() - 0.5) * shake, sc.yaw + (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake * 0.5);
-    flashlight.intensity = FLASH_INTENSITY * (1.6 + Math.random() * 0.6);
+    flashlight.intensity = FLASH_INTENSITY * (0.28 + Math.random() * 0.14); // close up: keep it dark and wet, not blown out
     ui.setDanger(0.55 + 0.45 * Math.abs(Math.sin(sc.t * 18)));
   }
 

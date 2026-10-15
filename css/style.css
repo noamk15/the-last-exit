@@ -437,7 +437,8 @@ kbd.wide { padding: 0 12px; }
 }
 
 .overlay.dead { background: rgba(14, 4, 4, 0.5); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
-#gameover .panel { background: rgba(7, 9, 11, 0.55); }
+#gameover { align-items: flex-end; padding-bottom: 5vh; }
+#gameover .panel { background: rgba(7, 9, 11, 0.55); padding: 26px 40px; }
 .h2.red { color: #ff5a46; text-shadow: 0 0 30px rgba(255, 60, 40, 0.55); }
 #gameover .btn-primary { border-color: rgba(255, 90, 70, 0.5); color: #ff8b7a; }
 #gameover .btn-primary:hover { box-shadow: 0 0 28px rgba(255, 60, 40, 0.3); border-color: #ff5a46; }

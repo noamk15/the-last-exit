@@ -215,7 +215,6 @@ function boot() {
 
   function disposeLevel() {
     if (!level) return;
-    level.monsters.forEach(mo => audio.stopMonster(mo.voice));
     scene.remove(level.group);
     level.walls.dispose();
     level.group.traverse(o => { if (o.geometry && o.geometry !== wallGeo && ![ringGeo, shaftGeo, toothGeo].includes(o.geometry)) o.geometry.dispose(); });
@@ -312,7 +311,7 @@ function boot() {
       const pos = new THREE.Vector3((cell.x + 0.5) * S, 0, (cell.y + 0.5) * S);
       g.position.copy(pos);
       group.add(g);
-      monsters.push({ group: g, pos, cell: { x: cell.x, y: cell.y }, path: [], state: 'patrol', repathT: 0, lostT: 0, voice: null, bob: Math.random() * 6 });
+      monsters.push({ group: g, pos, cell: { x: cell.x, y: cell.y }, path: [], state: 'patrol', repathT: 0, lostT: 0, stepT: Math.random() * 0.5, bob: Math.random() * 6 });
     }
 
     // menu glide path: start -> farthest cell
@@ -404,7 +403,6 @@ function boot() {
     ui.showHud();
     state = 'playing';
     audio.startMusic();
-    level.monsters.forEach(mo => { if (!mo.voice) mo.voice = audio.monsterVoice(); });
     if (document.pointerLockElement !== canvas) lockPointer();
     ui.fadeIn();
   }
@@ -433,14 +431,9 @@ function boot() {
     ui.hidePause();
   }
 
-  function silenceMonsters() {
-    level.monsters.forEach(mo => { if (mo.voice) audio.setMonster(mo.voice, 0, 0, false); });
-  }
-
   async function goToMenu() {
     if (state === 'menu') return;
     if (document.pointerLockElement) document.exitPointerLock();
-    silenceMonsters();
     audio.stopMusic();
     audio.duck(false);
     await ui.fadeOut();
@@ -456,7 +449,6 @@ function boot() {
   async function winGame() {
     state = 'won';
     for (const k in input) input[k] = false;
-    silenceMonsters();
     audio.stopMusic();
     audio.win();
     const prevBest = loadBest();
@@ -474,7 +466,6 @@ function boot() {
     state = 'dead';
     deathCause = cause;
     for (const k in input) input[k] = false;
-    silenceMonsters();
     audio.stopMusic();
     if (cause === 'caught') audio.scream(); else audio.gameOver();
     if (cause !== 'caught') flashlight.intensity = 0;
@@ -664,7 +655,6 @@ function boot() {
         if (sec === 60) { audio.bell(1); ui.message('ONE MINUTE'); }
         else if (sec === 30) { audio.bell(2); ui.message('THIRTY SECONDS'); }
         else if (sec === 10) { audio.bell(3); ui.message('TEN SECONDS'); }
-        else if (sec < 10 && sec > 0) audio.tick(sec <= 5);
       }
       lastSecond = sec;
     }
@@ -739,10 +729,15 @@ function boot() {
       mo.group.position.set(mo.pos.x, Math.abs(Math.sin(mo.bob)) * 0.06, mo.pos.z);
       if (mo.state === 'chase') mo.group.lookAt(player.x, 0, player.z);
 
-      // voice: volume by distance, panned by direction
-      if (mo.voice) {
-        const vol = Math.max(0, 1 - worldDist / 14) ** 1.5 * (mo.state === 'chase' ? 1.4 : 0.8);
-        audio.setMonster(mo.voice, vol, relativePan(mo), mo.state === 'chase');
+      // spatialised footsteps: one step per stride while it moves, louder when close
+      const moving = mo.path.length > 0 || mo.state === 'chase';
+      if (moving) {
+        mo.stepT -= dt;
+        if (mo.stepT <= 0) {
+          mo.stepT = mo.state === 'chase' ? 0.3 : 0.6;
+          const vol = Math.pow(Math.max(0, 1 - worldDist / 18), 1.6) * (mo.state === 'chase' ? 1.3 : 1.0);
+          audio.monsterStep(vol, relativePan(mo), mo.state === 'chase');
+        }
       }
 
       if (worldDist < CATCH_DIST) { caught(mo); return; }

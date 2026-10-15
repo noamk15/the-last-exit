@@ -62,3 +62,9 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 - Timer now 1:30. Bell at 60 s ("ONE MINUTE"), two bells at 30 s, three at 10 s, then a tick every second (louder in the last 5).
 - Everything louder: master gain up, compressor retuned.
 - Agent note: monsters move from cell centre to cell centre along BFS paths, so they never clip through walls and never need collision code.
+
+## User request 4 (2026-10-15): monster footsteps instead of growls, no more ticking
+
+- Feedback: "replace the monster sound with spatialised footsteps, Fortnite style; the continuous tick-tick is horrible, remove it".
+- Monster breathing/growl removed. Each monster now emits one heavy footstep per stride (thud + stone grit), volume by distance (audible from about 9 cells), panned left/right from where the player looks, faster rhythm when running. The roar at the start of a chase stays as the fair warning.
+- Clock ticks in the last 10 s removed; the three bells (60 s, 30 s, 10 s) remain.

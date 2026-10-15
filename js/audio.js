@@ -280,44 +280,24 @@ export class AudioSys {
   }
 
   // ------------------------------------------------------------- monsters
-  // one looping, panned "breathing + growl" voice per monster
-  monsterVoice() {
-    if (!this.ensure()) return null;
-    const c = this.ctx;
-    const out = c.createGain(); out.gain.value = 0;
+  // Heavy, spatialised footstep (volume by distance, pan by direction), Fortnite style.
+  monsterStep(volume, panValue, running) {
+    if (!this.ctx || this.muted || volume <= 0.001) return;
+    const c = this.ctx, t = c.currentTime;
+    const dest = c.createGain(); dest.gain.value = volume;
     const pan = c.createStereoPanner ? c.createStereoPanner() : null;
-    if (pan) out.connect(pan).connect(this.bus); else out.connect(this.bus);
-    // breathing: noise through a bandpass whose gain follows a slow LFO
-    const breath = this._noise(2);
-    const bf = c.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 420; bf.Q.value = 1.2;
-    const bg = c.createGain(); bg.gain.value = 0.5;
-    const blfo = c.createOscillator(); blfo.frequency.value = 0.55;
-    const blfoG = c.createGain(); blfoG.gain.value = 0.45;
-    blfo.connect(blfoG).connect(bg.gain); blfo.start();
-    breath.connect(bf).connect(bg).connect(out); breath.start();
-    // growl: low saw with tremolo
-    const growl = c.createOscillator(); growl.type = 'sawtooth'; growl.frequency.value = 47;
-    const gf = c.createBiquadFilter(); gf.type = 'lowpass'; gf.frequency.value = 160; gf.Q.value = 3;
-    const gg = c.createGain(); gg.gain.value = 0.5;
-    const trem = c.createOscillator(); trem.frequency.value = 7;
-    const tremG = c.createGain(); tremG.gain.value = 0.3;
-    trem.connect(tremG).connect(gg.gain); trem.start();
-    growl.connect(gf).connect(gg).connect(out); growl.start();
-    return { out, pan, blfo, trem, growl, breath, bf, gf };
-  }
-  setMonster(v, volume, panValue, chasing) {
-    if (!v || !this.ctx) return;
-    const t = this.ctx.currentTime;
-    v.out.gain.setTargetAtTime(volume, t, 0.15);
-    if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, panValue)), t, 0.1);
-    v.blfo.frequency.setTargetAtTime(chasing ? 2.2 : 0.55, t, 0.3);
-    v.growl.frequency.setTargetAtTime(chasing ? 62 : 47, t, 0.3);
-    v.gf.frequency.setTargetAtTime(chasing ? 320 : 160, t, 0.3);
-  }
-  stopMonster(v) {
-    if (!v) return;
-    v.out.gain.setTargetAtTime(0, this.ctx.currentTime, 0.2);
-    setTimeout(() => { [v.blfo, v.trem, v.growl, v.breath].forEach(n => { try { n.stop(); } catch { /* ok */ } }); v.out.disconnect(); }, 1200);
+    if (pan) { pan.pan.value = Math.max(-1, Math.min(1, panValue)); dest.connect(pan).connect(this.bus); } else dest.connect(this.bus);
+    // thud: low sine drop
+    const o = c.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(running ? 95 : 75, t); o.frequency.exponentialRampToValueAtTime(32, t + 0.13);
+    const og = c.createGain(); og.gain.setValueAtTime(0, t);
+    og.gain.linearRampToValueAtTime(0.9, t + 0.008); og.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    o.connect(og).connect(dest); o.start(t); o.stop(t + 0.25);
+    // grit: short filtered noise (stone scrape)
+    const n = this._noise(0.15), f = c.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = running ? 900 : 600; f.Q.value = 0.7;
+    const ng = c.createGain(); ng.gain.setValueAtTime(0.35, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    n.connect(f).connect(ng).connect(dest); n.start(t); n.stop(t + 0.15);
   }
   roar(panValue = 0) {
     if (!this.ensure()) return;
@@ -352,16 +332,6 @@ export class AudioSys {
       this._tone(1160, 0.5, 'sine', 0.06, d + 0.01);
     }
   }
-  tick(strong = false) {
-    if (!this.ensure()) return;
-    const c = this.ctx, t = c.currentTime;
-    const n = this._noise(0.06), g = c.createGain();
-    g.gain.setValueAtTime(strong ? 0.6 : 0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = strong ? 1800 : 2600; f.Q.value = 6;
-    n.connect(f).connect(g).connect(this.bus); n.start(t); n.stop(t + 0.07);
-    this._tone(strong ? 660 : 880, 0.12, 'square', strong ? 0.12 : 0.05);
-  }
-
   footsteps(dt, moving) {
     if (!this.ctx || this.muted) return;
     if (!moving) { this._stepT = 0.25; return; }

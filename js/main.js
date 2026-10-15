@@ -16,7 +16,7 @@ const MONSTER_COUNT = 2;
 const MONSTER_PATROL_SPEED = 1.5, MONSTER_CHASE_SPEED = 3.1;
 const MONSTER_SENSE_CELLS = 6;   // BFS distance at which a monster starts chasing
 const MONSTER_LOSE_CELLS = 11;   // BFS distance at which it gives up
-const CATCH_DIST = 0.9;
+const CATCH_DIST = 1.0;
 const WARN_AT = 30;          // timer turns red
 const CRITICAL_AT = 10;      // timer gets frantic
 
@@ -727,6 +727,12 @@ function boot() {
         else { mo.pos.addScaledVector(monsterTmp.normalize(), budget); budget = 0; }
         const dirX = monsterTmp.x, dirZ = monsterTmp.z;
         if (d > 0.001) mo.group.lookAt(mo.pos.x + dirX, 0, mo.pos.z + dirZ);
+      }
+      // same cell as the player (no path left): close in directly
+      if (mo.state === 'chase' && mo.path.length === 0 && budget > 0) {
+        monsterTmp.set(player.x - mo.pos.x, 0, player.z - mo.pos.z);
+        const d = monsterTmp.length();
+        if (d > 0.001) mo.pos.addScaledVector(monsterTmp.normalize(), Math.min(d, budget));
       }
       mo.cell = { x: Math.floor(mo.pos.x / S), y: Math.floor(mo.pos.z / S) };
       mo.bob += dt * (mo.state === 'chase' ? 9 : 4);

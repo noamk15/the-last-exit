@@ -20,6 +20,10 @@ export class UI {
     this.hudKeys = Array.from(this.hud.querySelectorAll('.key'));
     this.hudCount = $('hud-count');
     this.hudTimer = $('hud-timer');
+    this.hudTimerValue = $('hud-timer-value');
+    this.gameover = $('gameover');
+    this.deadKeys = $('dead-keys');
+    this.danger = $('danger');
     this.hudMessage = $('hud-message');
     this.hudHint = $('hud-hint');
     this.seedValue = $('seed-value');
@@ -35,6 +39,8 @@ export class UI {
       fullscreen: $('btn-fullscreen'),
       menu: $('btn-menu'),
       menuWin: $('btn-menu-win'),
+      retry: $('btn-retry'),
+      menuDead: $('btn-menu-dead'),
     };
     this._msgTimer = 0;
   }
@@ -42,11 +48,13 @@ export class UI {
   show(el) { el.classList.remove('hidden'); }
   hide(el) { el.classList.add('hidden'); }
 
-  showStart() { this.show(this.start); this.hide(this.hud); this.hide(this.pause); this.hide(this.win); }
-  showHud()   { this.hide(this.start); this.show(this.hud); this.hide(this.pause); this.hide(this.win); }
+  showStart() { this.show(this.start); this.hide(this.hud); this.hide(this.pause); this.hide(this.win); this.hide(this.gameover); this.setDanger(0); }
+  showHud()   { this.hide(this.start); this.show(this.hud); this.hide(this.pause); this.hide(this.win); this.hide(this.gameover); }
   showPause() { this.show(this.pause); }
   hidePause() { this.hide(this.pause); }
-  showWin()   { this.hide(this.hud); this.hide(this.pause); this.show(this.win); }
+  showWin()   { this.hide(this.hud); this.hide(this.pause); this.show(this.win); this.setDanger(0); }
+  showGameOver(keys, total) { this.deadKeys.textContent = `${keys} / ${total}`; this.hide(this.hud); this.hide(this.pause); this.show(this.gameover); this.setDanger(0); }
+  setDanger(v) { this.danger.style.opacity = String(Math.max(0, Math.min(1, v))); }
   showNoWebGL() { this.hide(this.start); this.show(this.nowebgl); }
 
   setSeed(seed) { this.seedValue.textContent = seed; }
@@ -63,7 +71,12 @@ export class UI {
     this.hudCount.textContent = `${n} / ${total}`;
   }
 
-  setTimer(ms) { this.hudTimer.textContent = formatTime(ms); }
+  // countdown display: red + blinking under warnMs, bigger under criticalMs
+  setCountdown(remainingMs, warnMs = 30000, criticalMs = 10000) {
+    this.hudTimerValue.textContent = formatTime(remainingMs);
+    this.hudTimer.classList.toggle('warn', remainingMs <= warnMs);
+    this.hudTimer.classList.toggle('critical', remainingMs <= criticalMs);
+  }
 
   setHint(text) { this.hudHint.textContent = text; }
 

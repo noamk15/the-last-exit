@@ -46,3 +46,10 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 
 - Feedback: "use the arrow keys", "add a way back to the menu", "I can't move forward, it bugs, maybe too wide".
 - Fixes: arrow keycaps shown on the start screen, keyboard now matched by key name as well as physical position (works on AZERTY and QWERTY), Menu button in pause and victory, player radius 0.55 -> 0.42 and speed 3.6 -> 4.0, buttons lose focus after a click (Space/Enter could restart the game), automatic drop of the pixel ratio when the frame rate is low.
+
+## User request 2 (2026-10-15): horror ambience, stressful music, death timer, random maze
+
+- Added: 2-minute countdown (red + blinking under 30 s, bigger and frantic under 10 s), red vignette pulsing with a heartbeat, camera tremble, flashlight brownouts with a click, dust motes, dried stains on the walls, game over screen ("Time's up") with Try again / Menu.
+- Music is 100% procedural (Web Audio): bass pulse, dissonant detuned pad, eerie whistle, wind bed, random stingers (metal hit, riser, whisper), heartbeat that accelerates as time runs out. Everything is driven by one "tension" value computed from the time left.
+- The maze is now random for every game (menu, play again, try again). `?seed=` still pins a layout for the demo.
+- Surprise: the agent refactored the whole level into a rebuildable group (dispose + rebuild) so a new maze can be generated without reloading the page.

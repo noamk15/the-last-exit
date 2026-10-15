@@ -125,6 +125,25 @@ try {
   await evaluate(`document.getElementById('btn-menu').click()`);
   await sleep(1500);
   check(await evaluate('__tle.state') === 'menu' && await evaluate(`!document.getElementById('start').classList.contains('hidden')`), 'menu button returns to the start screen');
+
+  // 3. countdown, death, random mazes
+  await navigate(`${BASE}?autostart=1`);
+  const seedA = await evaluate('__tle.seed');
+  check(/^\d+$/.test(seedA), `random seed generated without ?seed (${seedA})`);
+  await evaluate('__tle.setElapsed(120000 - 25000)');
+  await sleep(400);
+  check(await evaluate(`document.getElementById('hud-timer').classList.contains('warn')`), 'timer turns red under 30 s');
+  await evaluate('__tle.setElapsed(120000 - 300)');
+  await sleep(1800);
+  check(await evaluate('__tle.state') === 'dead', 'time out kills the player');
+  check(await evaluate(`!document.getElementById('gameover').classList.contains('hidden')`), 'game over screen visible');
+  await evaluate(`document.getElementById('btn-retry').click()`);
+  await sleep(1800);
+  const seedB = await evaluate('__tle.seed');
+  check(await evaluate('__tle.state') === 'playing' && await evaluate('__tle.remaining') > 118000, 'try again restarts with a full timer');
+  check(seedB !== seedA, `try again builds a new random maze (${seedA} -> ${seedB})`);
+  const walls = await evaluate(`(() => { let n = 0; const m = __tle.maze; for (let y = 0; y < m.rows; y++) for (let x = 0; x < m.cols; x++) if (m.isWall(x, y)) n++; return n; })()`);
+  check(walls > 40, 'new maze has walls');
 } catch (e) {
   problems.push('script error: ' + e.message);
 } finally {

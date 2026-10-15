@@ -399,11 +399,48 @@ kbd.wide { padding: 0 12px; }
   position: absolute;
   top: 22px;
   right: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.2em;
+  color: var(--ink-dim);
+  transition: color 0.4s, transform 0.4s var(--ease);
+  transform-origin: top right;
+}
+.hud-timer-label {
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
   color: var(--muted);
 }
+.hud-timer.warn {
+  color: #ff5a46;
+  text-shadow: 0 0 14px rgba(255, 60, 40, 0.7);
+  animation: blink 1s steps(2, start) infinite;
+}
+.hud-timer.warn .hud-timer-label { color: #c0453a; }
+.hud-timer.critical {
+  animation-duration: 0.36s;
+  transform: scale(1.35);
+  font-weight: 600;
+}
+@keyframes blink { to { visibility: hidden; } }
+
+.danger {
+  z-index: 7;
+  opacity: 0;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, transparent 35%, rgba(150, 10, 10, 0.75) 100%);
+  transition: opacity 0.25s;
+}
+
+.overlay.dead { background: rgba(14, 4, 4, 0.8); }
+.h2.red { color: #ff5a46; text-shadow: 0 0 30px rgba(255, 60, 40, 0.55); }
+#gameover .btn-primary { border-color: rgba(255, 90, 70, 0.5); color: #ff8b7a; }
+#gameover .btn-primary:hover { box-shadow: 0 0 28px rgba(255, 60, 40, 0.3); border-color: #ff5a46; }
+#gameover .btn-primary::before { background: radial-gradient(60% 120% at 50% 100%, rgba(255, 60, 40, 0.2), transparent 70%); }
 .crosshair {
   position: absolute;
   left: 50%;
@@ -476,6 +513,7 @@ kbd.wide { padding: 0 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .grain, .menu-fog, .title .fl, .title .fl2 { animation: none; }
+  .hud-timer.warn { animation: none; }
   .reveal { animation-duration: 0.01s; animation-delay: 0s; }
   .screen { transition: none; }
 }

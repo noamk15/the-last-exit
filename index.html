@@ -25,6 +25,7 @@
   <!-- always-on cinematic layers -->
   <div class="layer vignette" aria-hidden="true"></div>
   <div class="layer grain" aria-hidden="true"></div>
+  <div id="danger" class="layer danger" aria-hidden="true"></div>
 
   <!-- HUD -->
   <div id="hud" class="screen hud hidden" aria-live="polite">
@@ -34,7 +35,7 @@
       <svg class="key" data-key="2"><use href="#icon-key"/></svg>
       <span class="hud-count" id="hud-count">0 / 3</span>
     </div>
-    <div class="hud-timer" id="hud-timer">00:00.0</div>
+    <div class="hud-timer" id="hud-timer"><span class="hud-timer-label">time left</span><span id="hud-timer-value">02:00.0</span></div>
     <div class="crosshair" aria-hidden="true"></div>
     <div class="hud-message" id="hud-message" aria-live="assertive"></div>
     <div class="hud-hint" id="hud-hint">FIND THE THREE KEYS</div>
@@ -75,7 +76,8 @@
       <div class="meta reveal r7">
         <span id="best-line" class="best hidden">best time <strong id="best-value">—</strong></span>
         <span class="sound-hint">best with sound on</span>
-        <span class="seed">seed <span id="seed-value">—</span></span>
+        <span class="limit">you have <strong>2:00</strong></span>
+        <span class="seed">maze <span id="seed-value">—</span></span>
       </div>
     </div>
     <button id="btn-fullscreen" class="btn btn-ghost corner" type="button" title="Toggle fullscreen">fullscreen</button>
@@ -107,6 +109,22 @@
       <div class="row">
         <button id="btn-again" class="btn btn-primary" type="button"><span class="btn-label">Play again</span></button>
         <button id="btn-menu-win" class="btn btn-ghost" type="button">Menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section id="gameover" class="screen overlay dead hidden">
+    <div class="panel">
+      <p class="kicker">The maze keeps you</p>
+      <h2 class="h2 big red">Time's up</h2>
+      <p class="sub">You never found the exit.</p>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">keys</span><span class="stat-value" id="dead-keys">0 / 3</span></div>
+      </div>
+      <div class="row">
+        <button id="btn-retry" class="btn btn-primary" type="button"><span class="btn-label">Try again</span></button>
+        <button id="btn-menu-dead" class="btn btn-ghost" type="button">Menu</button>
       </div>
     </div>
   </section>

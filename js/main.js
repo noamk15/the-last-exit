@@ -1,10 +1,10 @@
 // THE LAST EXIT — main game loop, scene, state machine.
 import * as THREE from 'three';
-import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js';
-import { Player } from './player.js';
-import { UI, loadBest, saveBest } from './ui.js';
-import { AudioSys } from './audio.js';
-import { Minimap } from './minimap.js';
+import { buildLevel as generateLevel, hashSeed, bfs, pathTo, WALL, mulberry32 } from './maze.js?v=mv9dr1pe';
+import { Player } from './player.js?v=mv9dr1pe';
+import { UI, loadBest, saveBest } from './ui.js?v=mv9dr1pe';
+import { AudioSys } from './audio.js?v=mv9dr1pe';
+import { Minimap } from './minimap.js?v=mv9dr1pe';
 
 const S = 2;            // cell size (world units)
 const H = 3;            // wall height
@@ -776,7 +776,7 @@ function boot() {
         mo.stepT -= dt;
         if (mo.stepT <= 0) {
           mo.stepT = mo.state === 'chase' ? 0.3 : 0.6;
-          const vol = Math.pow(Math.max(0, 1 - worldDist / 18), 1.6) * (mo.state === 'chase' ? 1.3 : 1.0);
+          const vol = Math.pow(Math.max(0, 1 - worldDist / 12), 2.2) * (mo.state === 'chase' ? 1.4 : 0.9);
           audio.monsterStep(vol, relativePan(mo), mo.state === 'chase');
         }
       }

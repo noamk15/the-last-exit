@@ -73,3 +73,8 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 
 - The "continuous tick" was not the countdown: it was the music's bass pulse, modulated by a square-wave LFO. Every hard transition of the square wave produced a click, and the LFO sped up as time ran out. Replaced by a sine LFO. Good example of the agent misreading the first bug report (it removed the clock ticks, which were a different sound).
 - Monster redesigned: 2.9 m tall, hunched torso, legs too long, arms hanging to the floor with claws, tilted head that twitches at random, uneven glowing eyes, red gaping mouth that opens when it hunts, arms raised forward while chasing, glossy black skin that catches the torch.
+
+## Deployment difficulty (2026-10-15): stale cache
+
+- The user reported "the tick is still there and the monster did not change" right after a deploy that curl showed was live. Cause: GitHub Pages sends `Cache-Control: max-age=600`, and a normal browser reload keeps cached JS modules. Fix: `scripts/bump.mjs` stamps `?v=<version>` on every import before each deploy, so new files are fetched as soon as `index.html` is reloaded.
+- Also shortened the audible range of monster footsteps: in a 13x13 maze a monster is almost always within 9 cells, so the steps were a permanent low "toc toc" that could be heard as a tick.

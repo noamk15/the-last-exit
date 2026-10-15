@@ -36,6 +36,13 @@ then open http://localhost:8000/
 - Maze: recursive backtracker on a 13x13 grid with a few extra loops, seeded PRNG, BFS to guarantee keys and exit are reachable.
 - Textures and sounds are generated procedurally (canvas + Web Audio API). No external assets.
 
+## Before each deploy
+
+```
+node scripts/bump.mjs      # stamps ?v= on imports so browsers do not serve stale JS
+node scripts/e2e.mjs       # end-to-end smoke test in headless Chrome
+```
+
 ## Verify the maze generator
 
 ```

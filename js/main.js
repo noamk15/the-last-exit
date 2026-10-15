@@ -182,12 +182,28 @@ function boot() {
   const toothGeo = new THREE.BoxGeometry(0.06, 0.14, 0.06);
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.6, metalness: 0.7 });
   const DOOR_LOCKED = 0x5a120e, DOOR_OPEN = 0x2f9a52;
-  const monsterMat = new THREE.MeshStandardMaterial({ color: 0x070709, roughness: 1, metalness: 0 });
+  // monster: wet black skin that catches the torch, glowing eyes and mouth
+  const monsterMat = new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.55, metalness: 0.15 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
-  const bodyGeo = new THREE.CylinderGeometry(0.2, 0.32, 1.9, 8);
-  const headGeo = new THREE.SphereGeometry(0.21, 10, 8);
-  const eyeGeo = new THREE.SphereGeometry(0.035, 8, 6);
-  const armGeo = new THREE.CylinderGeometry(0.05, 0.07, 1.1, 6);
+  const mouthMat = new THREE.MeshBasicMaterial({ color: 0x8a0f0a });
+  const torsoGeo = new THREE.CylinderGeometry(0.16, 0.24, 1.3, 8);
+  const legGeo = new THREE.CylinderGeometry(0.045, 0.07, 1.25, 6);
+  const armGeo = new THREE.CylinderGeometry(0.035, 0.05, 1.55, 6);
+  const neckGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.3, 6);
+  const headGeo = new THREE.SphereGeometry(0.19, 12, 10);
+  const eyeGeo = new THREE.SphereGeometry(0.045, 8, 6);
+  const clawGeo = new THREE.ConeGeometry(0.018, 0.16, 5);
+  const mouthGeo = new THREE.BoxGeometry(0.13, 0.05, 0.03);
+  function makeClawHand() {
+    const hand = new THREE.Group();
+    for (let i = -1; i <= 1; i++) {
+      const claw = new THREE.Mesh(clawGeo, monsterMat);
+      claw.position.set(i * 0.035, -0.08, 0.02);
+      claw.rotation.x = Math.PI - 0.3; claw.rotation.z = i * 0.25;
+      hand.add(claw);
+    }
+    return hand;
+  }
 
   // floor + ceiling never change between levels
   const floorMesh = new THREE.Mesh(planeGeo, floorMat);
@@ -300,18 +316,31 @@ function boot() {
     for (let i = 0; i < MONSTER_COUNT && spawnCells.length; i++) {
       const cell = spawnCells.pop();
       const g = new THREE.Group();
-      const body = new THREE.Mesh(bodyGeo, monsterMat); body.position.y = 0.95;
-      const head = new THREE.Mesh(headGeo, monsterMat); head.position.y = 2.05;
-      const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.07, 2.08, 0.18);
-      const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.07, 2.08, 0.18);
-      const armL = new THREE.Mesh(armGeo, monsterMat); armL.position.set(-0.3, 1.0, 0.05); armL.rotation.z = 0.15;
-      const armR = new THREE.Mesh(armGeo, monsterMat); armR.position.set(0.3, 1.0, 0.05); armR.rotation.z = -0.15;
-      const glow = new THREE.PointLight(0xff2a1a, 1.4, 3.5, 2); glow.position.set(0, 2.0, 0.25);
-      g.add(body, head, eyeL, eyeR, armL, armR, glow);
+      // legs (too long, slightly bent outward)
+      const legL = new THREE.Mesh(legGeo, monsterMat); legL.position.set(-0.11, 0.62, 0); legL.rotation.z = 0.06;
+      const legR = new THREE.Mesh(legGeo, monsterMat); legR.position.set(0.11, 0.62, 0); legR.rotation.z = -0.06;
+      // hunched torso leaning toward you
+      const torso = new THREE.Mesh(torsoGeo, monsterMat); torso.position.set(0, 1.85, 0.08); torso.rotation.x = 0.32;
+      // arms hanging to the floor with claws
+      const armL = new THREE.Group(); armL.position.set(-0.26, 2.3, 0.1);
+      const armLMesh = new THREE.Mesh(armGeo, monsterMat); armLMesh.position.y = -0.78; armL.add(armLMesh);
+      const handL = makeClawHand(); handL.position.y = -1.58; armL.add(handL); armL.rotation.z = 0.12;
+      const armR = new THREE.Group(); armR.position.set(0.26, 2.3, 0.1);
+      const armRMesh = new THREE.Mesh(armGeo, monsterMat); armRMesh.position.y = -0.78; armR.add(armRMesh);
+      const handR = makeClawHand(); handR.position.y = -1.58; armR.add(handR); armR.rotation.z = -0.12;
+      // neck + head tilted, eyes uneven, open mouth
+      const neck = new THREE.Mesh(neckGeo, monsterMat); neck.position.set(0, 2.55, 0.22); neck.rotation.x = 0.35;
+      const head = new THREE.Group(); head.position.set(0, 2.76, 0.3); head.rotation.z = 0.32;
+      const skull = new THREE.Mesh(headGeo, monsterMat); skull.scale.set(0.85, 1.25, 0.9); head.add(skull);
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.075, 0.04, 0.15); head.add(eyeL);
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat); eyeR.position.set(0.07, 0.07, 0.15); eyeR.scale.setScalar(0.8); head.add(eyeR);
+      const mouth = new THREE.Mesh(mouthGeo, mouthMat); mouth.position.set(0, -0.12, 0.16); head.add(mouth);
+      const glow = new THREE.PointLight(0xff2a1a, 1.8, 4, 2); glow.position.set(0, 0.05, 0.3); head.add(glow);
+      g.add(legL, legR, torso, armL, armR, neck, head);
       const pos = new THREE.Vector3((cell.x + 0.5) * S, 0, (cell.y + 0.5) * S);
       g.position.copy(pos);
       group.add(g);
-      monsters.push({ group: g, pos, cell: { x: cell.x, y: cell.y }, path: [], state: 'patrol', repathT: 0, lostT: 0, stepT: Math.random() * 0.5, bob: Math.random() * 6 });
+      monsters.push({ group: g, head, mouth, armL, armR, pos, cell: { x: cell.x, y: cell.y }, path: [], state: 'patrol', repathT: 0, lostT: 0, stepT: Math.random() * 0.5, bob: Math.random() * 6, twitchT: 0, twitch: { x: 0, z: 0.32 } });
     }
 
     // menu glide path: start -> farthest cell
@@ -727,6 +756,18 @@ function boot() {
       mo.cell = { x: Math.floor(mo.pos.x / S), y: Math.floor(mo.pos.z / S) };
       mo.bob += dt * (mo.state === 'chase' ? 9 : 4);
       mo.group.position.set(mo.pos.x, Math.abs(Math.sin(mo.bob)) * 0.06, mo.pos.z);
+      // nervous head twitches, arms rise when hunting, mouth gapes
+      mo.twitchT -= dt;
+      if (mo.twitchT <= 0) {
+        mo.twitchT = 0.12 + Math.random() * (mo.state === 'chase' ? 0.3 : 0.9);
+        mo.twitch = { x: (Math.random() - 0.5) * 0.5, z: 0.32 + (Math.random() - 0.5) * 0.7 };
+      }
+      mo.head.rotation.x += (mo.twitch.x - mo.head.rotation.x) * Math.min(1, dt * 18);
+      mo.head.rotation.z += (mo.twitch.z - mo.head.rotation.z) * Math.min(1, dt * 18);
+      const reach = mo.state === 'chase' ? -1.3 : 0;
+      mo.armL.rotation.x += (reach - mo.armL.rotation.x) * Math.min(1, dt * 4);
+      mo.armR.rotation.x += (reach - mo.armR.rotation.x) * Math.min(1, dt * 4);
+      mo.mouth.scale.y = mo.state === 'chase' ? 2.2 + Math.sin(mo.bob * 2) * 0.8 : 1;
       if (mo.state === 'chase') mo.group.lookAt(player.x, 0, player.z);
 
       // spatialised footsteps: one step per stride while it moves, louder when close

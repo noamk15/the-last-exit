@@ -104,8 +104,9 @@ export class AudioSys {
     // 1. bass pulse (heart of the tension)
     const bass = c.createOscillator(); bass.type = 'sine'; bass.frequency.value = 41.2;
     const bassG = c.createGain(); bassG.gain.value = 0.3;
-    const pulse = c.createOscillator(); pulse.type = 'square'; pulse.frequency.value = 1.1;
-    const pulseG = c.createGain(); pulseG.gain.value = 0.11;
+    // sine LFO (a square wave here produced audible clicks at every transition)
+    const pulse = c.createOscillator(); pulse.type = 'sine'; pulse.frequency.value = 1.1;
+    const pulseG = c.createGain(); pulseG.gain.value = 0.12;
     pulse.connect(pulseG).connect(bassG.gain);
     bass.connect(bassG).connect(out);
     bass.start(); pulse.start();
@@ -341,11 +342,11 @@ export class AudioSys {
     const c = this.ctx, t = c.currentTime;
     const src = this._noise(0.2);
     const f = c.createBiquadFilter();
-    f.type = 'lowpass'; f.frequency.value = 320 + Math.random() * 120;
+    f.type = 'lowpass'; f.frequency.value = 260 + Math.random() * 100;
     const g = c.createGain();
     g.gain.setValueAtTime(0.0, t);
-    g.gain.linearRampToValueAtTime(0.16, t + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    g.gain.linearRampToValueAtTime(0.13, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.19);
     src.connect(f).connect(g).connect(this.bus);
     src.start(t); src.stop(t + 0.2);
   }

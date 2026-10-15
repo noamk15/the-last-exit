@@ -68,3 +68,8 @@ Pair: Noam (noamk15) + partner. Agent: Claude Code (Fable 5.1).
 - Feedback: "replace the monster sound with spatialised footsteps, Fortnite style; the continuous tick-tick is horrible, remove it".
 - Monster breathing/growl removed. Each monster now emits one heavy footstep per stride (thud + stone grit), volume by distance (audible from about 9 cells), panned left/right from where the player looks, faster rhythm when running. The roar at the start of a chase stays as the fair warning.
 - Clock ticks in the last 10 s removed; the three bells (60 s, 30 s, 10 s) remain.
+
+## User request 5 (2026-10-15): scarier monster, "the tick is still there"
+
+- The "continuous tick" was not the countdown: it was the music's bass pulse, modulated by a square-wave LFO. Every hard transition of the square wave produced a click, and the LFO sped up as time ran out. Replaced by a sine LFO. Good example of the agent misreading the first bug report (it removed the clock ticks, which were a different sound).
+- Monster redesigned: 2.9 m tall, hunched torso, legs too long, arms hanging to the floor with claws, tilted head that twitches at random, uneven glowing eyes, red gaping mouth that opens when it hunts, arms raised forward while chasing, glossy black skin that catches the torch.
